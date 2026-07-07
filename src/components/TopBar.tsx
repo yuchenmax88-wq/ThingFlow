@@ -175,7 +175,7 @@ export default function TopBar({
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="sm" className="gap-1.5 px-2 font-medium">
-              <span className="max-w-[160px] truncate">{state.currentProject.name}</span>
+              <span className="max-w-[160px] truncate inline-block align-bottom">{state.currentProject.name}</span>
               <ChevronDown className="size-3.5 text-muted-foreground" />
             </Button>
           </DropdownMenuTrigger>
@@ -255,10 +255,10 @@ export default function TopBar({
         {/* 开发板选择 */}
         <DropdownMenu open={boardOpen} onOpenChange={setBoardOpen}>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" size="sm" className="gap-1.5 h-7 text-xs">
-              <span className="size-1.5 rounded-full bg-success" />
-              {currentBoard?.name.zh}
-              <ChevronDown className="size-3 text-muted-foreground" />
+            <Button variant="outline" size="sm" className="gap-1.5 h-7 text-xs max-w-[160px]">
+              <span className="size-1.5 rounded-full bg-success shrink-0" />
+              <span className="truncate">{currentBoard?.name.zh}</span>
+              <ChevronDown className="size-3 shrink-0 text-muted-foreground" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="start" className="w-72">

@@ -224,9 +224,9 @@ export default function RightPanel() {
                     ) : (
                       <div className="text-sm font-medium">{selectedComponent.name}</div>
                     )}
-                    <div className="mt-0.5 text-xs text-muted-foreground">
-                      {lang === 'zh' ? selectedComponentDef.name.zh : selectedComponentDef.name.en}
-                    </div>
+                   <div className="mt-0.5 text-xs text-muted-foreground truncate">
+                     {lang === 'zh' ? selectedComponentDef.name.zh : selectedComponentDef.name.en}
+                   </div>
                   </div>
                 </div>
                 <div className="flex gap-1">
@@ -317,7 +317,7 @@ export default function RightPanel() {
                         >
                           <SelectValue placeholder="选择引脚" />
                         </SelectTrigger>
-                        <SelectContent className="max-h-60">
+                        <SelectContent className="max-h-60 min-w-[200px]">
                           {availablePins.length === 0 ? (
                             <SelectItem value="none" disabled>无可用引脚</SelectItem>
                           ) : (
@@ -462,13 +462,13 @@ export default function RightPanel() {
                   </Badge>
                 </div>
               </div>
-              <div className="max-h-80 overflow-y-auto">
-                <table className="w-full text-[11px]">
+              <div className="max-h-80 overflow-auto">
+                <table className="w-full min-w-[220px] text-[11px]">
                   <thead className="sticky top-0 bg-card">
                     <tr className="border-b border-border text-muted-foreground">
-                      <th className="px-2 py-1.5 text-left font-medium">{t('props.pinNumber')}</th>
-                      <th className="px-2 py-1.5 text-left font-medium">{t('props.pinFunction')}</th>
-                      <th className="px-2 py-1.5 text-left font-medium">{t('props.pinStatus')}</th>
+                      <th className="whitespace-nowrap px-2 py-1.5 text-left font-medium">{t('props.pinNumber')}</th>
+                      <th className="whitespace-nowrap px-2 py-1.5 text-left font-medium">{t('props.pinFunction')}</th>
+                      <th className="whitespace-nowrap px-2 py-1.5 text-left font-medium">{t('props.pinStatus')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -495,7 +495,7 @@ export default function RightPanel() {
                               <span className="font-mono">{pin.number}</span>
                             </div>
                           </td>
-                          <td className="px-2 py-1 text-[10px] text-muted-foreground">
+                          <td className="max-w-[100px] truncate px-2 py-1 text-[10px] text-muted-foreground">
                             {pin.functions.slice(0, 2).join(' · ')}
                           </td>
                           <td className="px-2 py-1">

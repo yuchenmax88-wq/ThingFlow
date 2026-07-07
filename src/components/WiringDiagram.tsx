@@ -94,33 +94,48 @@ export default function WiringDiagram() {
     };
   }, [components]);
 
-  // 获取开发板引脚的 Y 坐标（左侧引脚）
-  const getBoardPinPosition = (pinNumber: string, side: 'left' | 'right') => {
-    if (!currentBoard) return { x: 0, y: 0 };
+  // 获取开发板引脚位置（搜索所有引脚，不限于同侧）
+  const getBoardPinPosition = (pinNumber: string, compSide: 'left' | 'right'): {
+    x: number;
+    y: number;
+    pinSide: 'left' | 'right';
+  } => {
+    if (!currentBoard) return { x: 0, y: 0, pinSide: 'left' };
     const { board } = layout;
 
-    // 找到引脚在列表中的索引
     const leftPins = currentBoard.pins.filter((_, i) => i % 2 === 0);
     const rightPins = currentBoard.pins.filter((_, i) => i % 2 === 1);
-    const pins = side === 'left' ? leftPins : rightPins;
 
-    const pinIndex = pins.findIndex((p) => p.number === pinNumber);
-    if (pinIndex === -1) {
-      // 找不到就用第一个 GPIO 引脚
-      const gpioPin = pins.find((p) => p.functions.includes('GPIO') && !p.functions.includes('VCC') && !p.functions.includes('GND'));
-      const idx = gpioPin ? pins.indexOf(gpioPin) : Math.floor(pins.length / 2);
-      const y = board.y + 30 + idx * 18;
+    const findPin = (pins: typeof leftPins, side: 'left' | 'right') => {
+      const pinIndex = pins.findIndex((p) => p.number === pinNumber);
+      if (pinIndex === -1) {
+        const gpioPin = pins.find((p) => p.functions.includes('GPIO') && !p.functions.includes('VCC') && !p.functions.includes('GND'));
+        const idx = gpioPin ? pins.indexOf(gpioPin) : Math.floor(pins.length / 2);
+        return {
+          x: side === 'left' ? board.x : board.x + board.w,
+          y: board.y + 30 + idx * 18,
+          pinSide: side,
+        };
+      }
       return {
         x: side === 'left' ? board.x : board.x + board.w,
-        y,
+        y: board.y + 30 + pinIndex * 18,
+        pinSide: side,
       };
-    }
-
-    const y = board.y + 30 + pinIndex * 18;
-    return {
-      x: side === 'left' ? board.x : board.x + board.w,
-      y,
     };
+
+    // 优先搜索同侧，找不到再搜异侧
+    if (compSide === 'left') {
+      const result = findPin(leftPins, 'left');
+      if (leftPins.findIndex((p) => p.number === pinNumber) !== -1) return result;
+      // 左侧没找到，搜索右侧
+      return findPin(rightPins, 'right');
+    } else {
+      const result = findPin(rightPins, 'right');
+      if (rightPins.findIndex((p) => p.number === pinNumber) !== -1) return result;
+      // 右侧没找到，搜索左侧
+      return findPin(leftPins, 'left');
+    }
   };
 
   // 获取配件引脚位置
@@ -172,11 +187,15 @@ export default function WiringDiagram() {
     y1: number,
     x2: number,
     y2: number,
-    direction: 'left-to-right' | 'right-to-left'
+    direction: 'left-to-right' | 'right-to-left' | 'cross'
   ) => {
     const midX = (x1 + x2) / 2;
-    if (direction === 'left-to-right') {
-      return `M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}`;
+    const { board: b } = layout;
+    if (direction === 'cross') {
+      const goTop = y1 < b.y + b.h / 2;
+      const routeY = goTop ? b.y - 25 : b.y + b.h + 25;
+      const gap = 30;
+      return `M ${x1} ${y1} L ${x1} ${routeY} L ${x2} ${routeY} L ${x2} ${y2}`;
     }
     return `M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}`;
   };
@@ -193,13 +212,14 @@ export default function WiringDiagram() {
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement('canvas');
+      const ratio = Math.min(svgHeight / svgWidth, 1.2);
       canvas.width = 900;
-      canvas.height = 600;
+      canvas.height = Math.round(900 * ratio);
       const ctx = canvas.getContext('2d');
       if (ctx) {
         ctx.fillStyle = '#ffffff';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(img, 0, 0, 900, 600);
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         canvas.toBlob((blob) => {
           if (blob) {
             const a = document.createElement('a');
@@ -221,6 +241,17 @@ export default function WiringDiagram() {
   // 开发板引脚渲染
   const leftPins = currentBoard?.pins.filter((_, i) => i % 2 === 0) ?? [];
   const rightPins = currentBoard?.pins.filter((_, i) => i % 2 === 1) ?? [];
+
+  // 动态计算 SVG viewBox
+  const maxPins = Math.max(leftPins.length, rightPins.length, 1);
+  const pinHeight = board.y + 30 + maxPins * 18 + 20;
+  const maxCompY = layout.components.reduce((max, c) => {
+    const offset = compOffsets[c.comp.id];
+    const dy = offset ? offset.dy : 0;
+    return Math.max(max, c.y + compHeight + dy + 40);
+  }, 0);
+  const svgHeight = Math.max(600, pinHeight, maxCompY) + 40;
+  const svgWidth = 900;
 
   const getPinBgColor = (funcs: string[]) => {
     if (funcs.includes('VCC')) return '#ef4444';
@@ -282,7 +313,7 @@ export default function WiringDiagram() {
         ) : (
            <svg
              ref={svgRef}
-             viewBox="0 0 900 600"
+             viewBox={`0 0 ${svgWidth} ${svgHeight}`}
              className="mx-auto h-auto w-full max-w-5xl"
              style={{ minHeight: '500px', cursor: draggingId ? 'grabbing' : 'default' }}
              onMouseMove={handleMouseMove}
@@ -298,7 +329,7 @@ export default function WiringDiagram() {
                 <feDropShadow dx="0" dy="2" stdDeviation="4" floodOpacity="0.15" />
               </filter>
             </defs>
-            <rect width="900" height="600" fill="url(#grid)" />
+            <rect width={svgWidth} height={svgHeight} fill="url(#grid)" />
 
             {/* 开发板 */}
             <g filter="url(#shadow)">
@@ -467,70 +498,82 @@ export default function WiringDiagram() {
                    onMouseDown={(e) => handleCompMouseDown(e, comp.id)}
                    transform={`translate(${offset.dx}, ${offset.dy})`}
                  >
-                  {/* 连线 */}
-                  {compPins.map((pinDef, pinIdx) => {
-                    const boardPinNumber = comp.pinMapping[pinDef.name];
-                    if (!boardPinNumber) return null;
+                   {/* 连线 */}
+                   {compPins.map((pinDef, pinIdx) => {
+                     const boardPinNumber = comp.pinMapping[pinDef.name];
+                     if (!boardPinNumber) return null;
 
-                    const compPos = getComponentPinPosition(
-                      x,
-                      y,
-                      compWidth,
-                      compHeight,
-                      pinIdx,
-                      compPins.length,
-                      side
-                    );
-                    const boardPos = getBoardPinPosition(boardPinNumber, side);
-                    const color = getWireColor(pinDef);
-                    const colorDark = getWireColorDark(pinDef);
+                     const compPos = getComponentPinPosition(
+                       x,
+                       y,
+                       compWidth,
+                       compHeight,
+                       pinIdx,
+                       compPins.length,
+                       side
+                     );
+                     const boardResult = getBoardPinPosition(boardPinNumber, side);
+                     const boardPos = { x: boardResult.x, y: boardResult.y };
+                     const isCrossSide = boardResult.pinSide !== side;
+                     const color = getWireColor(pinDef);
+                     const colorDark = getWireColorDark(pinDef);
 
-                    const path = generateWirePath(
-                      side === 'left' ? compPos.x : boardPos.x,
-                      compPos.y,
-                      side === 'left' ? boardPos.x : compPos.x,
-                      boardPos.y,
-                      side === 'left' ? 'left-to-right' : 'right-to-left'
-                    );
+                     // 确定路径方向和起点终点
+                     let x1: number, x2: number, dir: 'left-to-right' | 'right-to-left' | 'cross';
+                     if (isCrossSide) {
+                       dir = 'cross';
+                       x1 = side === 'left' ? compPos.x : compPos.x;
+                       x2 = boardPos.x;
+                     } else if (side === 'left') {
+                       dir = 'left-to-right';
+                       x1 = compPos.x;
+                       x2 = boardPos.x;
+                     } else {
+                       dir = 'right-to-left';
+                       x1 = boardPos.x;
+                       x2 = compPos.x;
+                     }
 
-                    return (
-                      <g key={`wire-${pinDef.name}`}>
-                        <path
-                          d={path}
-                          fill="none"
-                          stroke={isSelected ? color : colorDark}
-                          strokeWidth={isSelected ? 3 : 2}
-                          strokeLinecap="round"
-                          opacity={isSelected ? 1 : 0.85}
-                          className="transition-all"
-                        />
-                        {/* 引脚标签 - 配件侧 */}
-                        <text
-                          x={side === 'left' ? compPos.x - 4 : compPos.x + 4}
-                          y={compPos.y - 4}
-                          textAnchor={side === 'left' ? 'end' : 'start'}
-                          fill={color}
-                          fontSize="8"
-                          fontWeight="600"
-                          fontFamily="monospace"
-                        >
-                          {pinDef.name}
-                        </text>
-                        {/* 引脚标签 - 开发板侧 */}
-                        <text
-                          x={side === 'left' ? boardPos.x + 4 : boardPos.x - 4}
-                          y={boardPos.y - 4}
-                          textAnchor={side === 'left' ? 'start' : 'end'}
-                          fill={color}
-                          fontSize="8"
-                          fontWeight="600"
-                          fontFamily="monospace"
-                        >
-                          {boardPinNumber}
-                        </text>
-                      </g>
-                    );
-                  })}
+                     const path = generateWirePath(x1, compPos.y, x2, boardPos.y, dir);
+
+                     return (
+                       <g key={`wire-${pinDef.name}`}>
+                         <path
+                           d={path}
+                           fill="none"
+                           stroke={isSelected ? color : colorDark}
+                           strokeWidth={isSelected ? 3 : 2}
+                           strokeLinecap="round"
+                           opacity={isSelected ? 1 : 0.85}
+                           className="transition-all"
+                         />
+                         {/* 引脚标签 - 配件侧 */}
+                         <text
+                           x={side === 'left' ? compPos.x - 4 : compPos.x + 4}
+                           y={compPos.y - 4}
+                           textAnchor={side === 'left' ? 'end' : 'start'}
+                           fill={color}
+                           fontSize="8"
+                           fontWeight="600"
+                           fontFamily="monospace"
+                         >
+                           {pinDef.name}
+                         </text>
+                         {/* 引脚标签 - 开发板侧 */}
+                         <text
+                           x={boardResult.pinSide === 'left' ? boardPos.x + 4 : boardPos.x - 4}
+                           y={boardPos.y - 4}
+                           textAnchor={boardResult.pinSide === 'left' ? 'start' : 'end'}
+                           fill={color}
+                           fontSize="8"
+                           fontWeight="600"
+                           fontFamily="monospace"
+                         >
+                           {boardPinNumber}
+                         </text>
+                       </g>
+                     );
+                   })}
 
                   {/* 配件卡片 */}
                   <g filter="url(#shadow)">

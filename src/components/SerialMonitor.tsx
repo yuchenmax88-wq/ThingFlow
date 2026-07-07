@@ -336,7 +336,7 @@ export default function SerialMonitor() {
                       {log.tag}
                     </span>
                   )}
-                  <span className={cn('break-all', getLogColor(log.level, log.tag))}>
+                  <span className={cn('break-all flex-1 min-w-0', getLogColor(log.level, log.tag))}>
                     {log.message}
                   </span>
                 </div>
@@ -347,7 +347,7 @@ export default function SerialMonitor() {
           {/* 发送栏 */}
           <div className="border-t border-gray-800 bg-[#161b22] p-2">
             {/* 预置命令 */}
-            <div className="mb-1.5 flex items-center gap-1">
+            <div className="mb-1.5 flex flex-wrap items-center gap-1">
               <span className="text-[10px] text-gray-500">{t('serial.presetCmds')}:</span>
               {presetCommands.map((cmd) => (
                 <button
