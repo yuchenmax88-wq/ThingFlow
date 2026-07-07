@@ -20,6 +20,7 @@ export default function CodeEditor() {
   const [copied, setCopied] = useState(false);
   const [isEditable, setIsEditable] = useState(false);
   const [codeValue, setCodeValue] = useState('');
+  const [generating, setGenerating] = useState(false);
   const editorRef = useRef<any>(null);
 
   const isMicroPython =

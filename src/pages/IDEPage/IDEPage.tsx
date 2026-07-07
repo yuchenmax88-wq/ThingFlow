@@ -14,6 +14,7 @@ import { ThemeProvider } from '@/contexts/ThemeContext';
 import { ProjectProvider } from '@/contexts/ProjectContext';
 import { Toaster } from '@/components/ui/sonner';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 function IDEContent() {
   const [activeTab, setActiveTab] = useState('logic');
@@ -25,6 +26,7 @@ function IDEContent() {
 
   const handleGenerateCode = useCallback(() => {
     setActiveTab('code');
+    toast.success('代码已生成，请查看代码编辑器');
   }, []);
 
   const handleFlash = useCallback(() => {

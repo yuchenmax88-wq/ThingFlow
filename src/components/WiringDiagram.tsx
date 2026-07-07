@@ -190,7 +190,7 @@ export default function WiringDiagram() {
     direction: 'left-to-right' | 'right-to-left' | 'cross'
   ) => {
     const { board: b } = layout;
-    const ext = 14;
+    const ext = 20;
     if (direction === 'cross') {
       const goTop = y1 < b.y + b.h / 2;
       const routeY = goTop ? b.y - 25 : b.y + b.h + 25;
@@ -663,8 +663,8 @@ export default function WiringDiagram() {
                       width={compWidth}
                       height={compHeight}
                       rx="8"
-                      fill={isSelected ? '#fef3c7' : '#ffffff'}
-                      stroke={isSelected ? '#f59e0b' : '#e5e7eb'}
+                      fill={isSelected ? '#fef3c7' : 'var(--card, #ffffff)'}
+                      stroke={isSelected ? '#f59e0b' : 'var(--border, #e5e7eb)'}
                       strokeWidth={isSelected ? 2 : 1}
                       className="transition-all"
                     />
@@ -675,7 +675,7 @@ export default function WiringDiagram() {
                       width="28"
                       height="28"
                       rx="4"
-                      fill={isSelected ? '#fde68a' : '#f3f4f6'}
+                      fill={isSelected ? '#fde68a' : 'var(--muted, #f3f4f6)'}
                     />
                     <text
                       x={x + 22}
@@ -706,7 +706,7 @@ export default function WiringDiagram() {
                        x={x + compWidth / 2}
                        y={y + 52}
                        textAnchor="middle"
-                       fill={isSelected ? '#92400e' : '#374151'}
+                       fill={isSelected ? '#92400e' : 'var(--foreground, #374151)'}
                        fontSize="10"
                        fontWeight="600"
                      >

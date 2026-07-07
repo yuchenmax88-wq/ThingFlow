@@ -194,39 +194,39 @@ export default function SerialMonitor() {
   const presetCommands = ['AT', 'AT+RST', 'AT+GMR', 'reset', 'status'];
 
   const getLogColor = (level: string, tag?: string) => {
-    if (tag === 'TX') return 'text-cyan-400';
+    if (tag === 'TX') return 'text-primary';
     switch (level) {
-      case 'error': return 'text-red-400';
-      case 'warn': return 'text-yellow-400';
+      case 'error': return 'text-destructive';
+      case 'warn': return 'text-warning';
       case 'debug': return 'text-purple-400';
-      default: return 'text-green-400';
+      default: return 'text-success';
     }
   };
 
   const getTagBg = (tag?: string) => {
-    if (!tag) return 'bg-gray-700';
-    if (tag === 'WiFi') return 'bg-blue-900/60 text-blue-300';
-    if (tag === 'Sensor') return 'bg-green-900/60 text-green-300';
-    if (tag === 'Data') return 'bg-purple-900/60 text-purple-300';
-    if (tag === 'System') return 'bg-gray-700 text-gray-300';
-    if (tag === 'TX') return 'bg-cyan-900/60 text-cyan-300';
-    if (tag === 'Node') return 'bg-yellow-900/60 text-yellow-300';
-    return 'bg-gray-700';
+    if (!tag) return 'bg-muted';
+    if (tag === 'WiFi') return 'bg-blue-500/20 text-blue-300';
+    if (tag === 'Sensor') return 'bg-success/20 text-success';
+    if (tag === 'Data') return 'bg-purple-500/20 text-purple-300';
+    if (tag === 'System') return 'bg-muted text-muted-foreground';
+    if (tag === 'TX') return 'bg-primary/20 text-primary';
+    if (tag === 'Node') return 'bg-warning/20 text-warning';
+    return 'bg-muted';
   };
 
   const latestData = dataPoints[dataPoints.length - 1];
 
   return (
-    <div className="flex h-full flex-col bg-[#0d1117] text-green-400">
+    <div className="flex h-full flex-col bg-background text-foreground">
       {/* 工具栏 */}
-      <div className="flex items-center justify-between border-b border-gray-800 bg-[#161b22] px-4 py-2">
+      <div className="flex items-center justify-between border-b border-border bg-card/50 px-4 py-2">
         <div className="flex items-center gap-3">
-          <h2 className="text-sm font-semibold text-gray-200">{t('workspace.serialMonitor')}</h2>
+          <h2 className="text-sm font-semibold">{t('workspace.serialMonitor')}</h2>
           <Badge
             variant="outline"
             className={cn(
               'text-[10px]',
-              connected ? 'border-green-500/50 text-green-400' : 'border-gray-600 text-gray-500'
+              connected ? 'border-success/50 text-success' : 'border-muted text-muted-foreground'
             )}
           >
             {connected ? t('serial.connected') : t('serial.disconnected')}
@@ -234,9 +234,9 @@ export default function SerialMonitor() {
         </div>
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-1.5">
-            <span className="text-[11px] text-gray-500">{t('serial.baudRate')}</span>
+            <span className="text-[11px] text-muted-foreground">{t('serial.baudRate')}</span>
             <Select value={baudRate} onValueChange={setBaudRate} disabled={connected}>
-              <SelectTrigger className="h-7 w-24 border-gray-700 bg-[#0d1117] text-[11px] text-gray-300">
+              <SelectTrigger className="h-7 w-24 border-border bg-background text-[11px]">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -274,7 +274,7 @@ export default function SerialMonitor() {
         {/* 左侧：日志 + 发送 */}
         <div className="flex flex-1 flex-col">
           {/* 日志过滤栏 */}
-          <div className="flex items-center gap-2 border-b border-gray-800 bg-[#161b22] px-3 py-1.5">
+          <div className="flex items-center gap-2 border-b border-border bg-card/50 px-3 py-1.5">
             <div className="flex gap-0.5">
               {[
                 { val: 'all', label: lang === 'zh' ? '全部' : 'All' },
@@ -289,8 +289,8 @@ export default function SerialMonitor() {
                   className={cn(
                     'rounded px-2 py-0.5 text-[10px] font-medium transition-colors',
                     filter === f.val || (f.val === 'all' && !filter)
-                      ? 'bg-gray-700 text-gray-200'
-                      : 'text-gray-500 hover:bg-gray-800 hover:text-gray-400'
+                      ? 'bg-accent text-accent-foreground'
+                      : 'text-muted-foreground hover:bg-accent/50 hover:text-foreground'
                   )}
                 >
                   {f.label}
@@ -299,19 +299,19 @@ export default function SerialMonitor() {
             </div>
 
             <div className="relative ml-auto">
-              <Search className="pointer-events-none absolute left-2 top-1/2 size-3 -translate-y-1/2 text-gray-600" />
+              <Search className="pointer-events-none absolute left-2 top-1/2 size-3 -translate-y-1/2 text-muted-foreground" />
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={t('serial.search')}
-                className="h-6 w-44 border-gray-700 bg-[#0d1117] pl-7 text-[11px] text-gray-300 placeholder:text-gray-600 focus-visible:ring-gray-600"
+                className="h-6 w-44 border-border bg-background pl-7 text-[11px] placeholder:text-muted-foreground"
               />
             </div>
 
             <Button
               variant="ghost"
               size="icon"
-              className="h-6 w-6 text-gray-500 hover:text-gray-300"
+              className="h-6 w-6 text-muted-foreground hover:text-foreground"
               onClick={() => setLogs([])}
             >
               <Trash2 className="size-3.5" />
@@ -321,16 +321,16 @@ export default function SerialMonitor() {
           {/* 日志区域 */}
           <div
             ref={logRef}
-            className="flex-1 overflow-y-auto bg-[#0d1117] p-2 font-mono text-[11px] leading-5"
+            className="flex-1 overflow-y-auto bg-muted/30 p-2 font-mono text-[11px] leading-5"
           >
             {filteredLogs.length === 0 ? (
-              <div className="flex h-full items-center justify-center text-gray-600">
+              <div className="flex h-full items-center justify-center text-muted-foreground">
                 {connected ? (lang === 'zh' ? '等待数据...' : 'Waiting for data...') : (lang === 'zh' ? '点击连接开始监视' : 'Click connect to start monitoring')}
               </div>
             ) : (
               filteredLogs.map((log) => (
-                <div key={log.id} className="flex gap-2 hover:bg-white/[0.02]">
-                  <span className="shrink-0 text-gray-600">{log.timestamp}</span>
+                <div key={log.id} className="flex gap-2 hover:bg-foreground/[0.02]">
+                  <span className="shrink-0 text-muted-foreground">{log.timestamp}</span>
                   {log.tag && (
                     <span className={cn('shrink-0 rounded px-1 text-[9px] font-medium', getTagBg(log.tag))}>
                       {log.tag}
@@ -345,15 +345,15 @@ export default function SerialMonitor() {
           </div>
 
           {/* 发送栏 */}
-          <div className="border-t border-gray-800 bg-[#161b22] p-2">
+          <div className="border-t border-border bg-card/50 p-2">
             {/* 预置命令 */}
             <div className="mb-1.5 flex flex-wrap items-center gap-1">
-              <span className="text-[10px] text-gray-500">{t('serial.presetCmds')}:</span>
+              <span className="text-[10px] text-muted-foreground">{t('serial.presetCmds')}:</span>
               {presetCommands.map((cmd) => (
                 <button
                   key={cmd}
                   onClick={() => setSendText(cmd)}
-                  className="rounded border border-gray-700 bg-[#0d1117] px-1.5 py-0.5 text-[10px] text-gray-400 hover:border-gray-600 hover:text-gray-200"
+                  className="rounded border border-border bg-background px-1.5 py-0.5 text-[10px] text-muted-foreground hover:border-primary/50 hover:text-foreground"
                 >
                   {cmd}
                 </button>
@@ -362,9 +362,9 @@ export default function SerialMonitor() {
                 <Switch
                   checked={timedSend}
                   onCheckedChange={setTimedSend}
-                  className="scale-75 data-[state=checked]:bg-green-600"
+                  className="scale-75 data-[state=checked]:bg-success"
                 />
-                <span className="text-[10px] text-gray-500">{t('serial.timedSend')}</span>
+                <span className="text-[10px] text-muted-foreground">{t('serial.timedSend')}</span>
               </div>
             </div>
             {/* 输入框 */}
@@ -374,7 +374,7 @@ export default function SerialMonitor() {
                 onChange={(e) => setSendText(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleSend()}
                 placeholder={t('serial.sendPlaceholder')}
-                className="h-7 border-gray-700 bg-[#0d1117] text-xs text-gray-200 placeholder:text-gray-600 focus-visible:ring-green-700"
+                className="h-7 border-border bg-background text-xs placeholder:text-muted-foreground"
                 disabled={!connected}
               />
               <Button
@@ -391,47 +391,47 @@ export default function SerialMonitor() {
         </div>
 
         {/* 右侧：数据仪表盘 */}
-        <div className="w-80 shrink-0 border-l border-gray-800 bg-[#161b22] p-3">
-          <h3 className="mb-2 flex items-center gap-1.5 text-xs font-medium text-gray-300">
-            <Activity className="size-3.5 text-green-400" />
+        <div className="w-80 shrink-0 border-l border-border bg-card/30 p-3">
+          <h3 className="mb-2 flex items-center gap-1.5 text-xs font-medium">
+            <Activity className="size-3.5 text-success" />
             {t('serial.dashboard')}
           </h3>
 
           {/* 数值卡片 */}
           <div className="mb-3 grid grid-cols-3 gap-2">
-            <Card className="border-gray-800 bg-[#0d1117]">
+            <Card className="border-border bg-background">
               <CardContent className="p-2 text-center">
-                <Thermometer className="mx-auto mb-1 size-4 text-orange-400" />
-                <div className="text-lg font-bold text-orange-400 tabular-nums">
+                <Thermometer className="mx-auto mb-1 size-4 text-warning" />
+                <div className="text-lg font-bold text-warning tabular-nums">
                   {latestData?.temperature.toFixed(1) ?? '--'}
                 </div>
-                <div className="text-[9px] text-gray-500">°C</div>
+                <div className="text-[9px] text-muted-foreground">°C</div>
               </CardContent>
             </Card>
-            <Card className="border-gray-800 bg-[#0d1117]">
+            <Card className="border-border bg-background">
               <CardContent className="p-2 text-center">
-                <Droplets className="mx-auto mb-1 size-4 text-blue-400" />
-                <div className="text-lg font-bold text-blue-400 tabular-nums">
+                <Droplets className="mx-auto mb-1 size-4 text-primary" />
+                <div className="text-lg font-bold text-primary tabular-nums">
                   {latestData?.humidity ?? '--'}
                 </div>
-                <div className="text-[9px] text-gray-500">%RH</div>
+                <div className="text-[9px] text-muted-foreground">%RH</div>
               </CardContent>
             </Card>
-            <Card className="border-gray-800 bg-[#0d1117]">
+            <Card className="border-border bg-background">
               <CardContent className="p-2 text-center">
                 <Sun className="mx-auto mb-1 size-4 text-yellow-400" />
                 <div className="text-lg font-bold text-yellow-400 tabular-nums">
                   {latestData?.light ?? '--'}
                 </div>
-                <div className="text-[9px] text-gray-500">lux</div>
+                <div className="text-[9px] text-muted-foreground">lux</div>
               </CardContent>
             </Card>
           </div>
 
           {/* 图表 */}
-          <Card className="border-gray-800 bg-[#0d1117]">
-            <CardHeader className="border-b border-gray-800 p-2 pb-1.5">
-              <CardTitle className="text-[11px] font-medium text-gray-400">
+          <Card className="border-border bg-background">
+            <CardHeader className="border-b border-border p-2 pb-1.5">
+              <CardTitle className="text-[11px] font-medium">
                 {lang === 'zh' ? '实时数据趋势' : 'Real-time Trend'}
               </CardTitle>
             </CardHeader>
@@ -439,17 +439,18 @@ export default function SerialMonitor() {
               <div className="h-48 min-h-[192px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={dataPoints}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
-                    <XAxis dataKey="time" tick={{ fill: '#6b7280', fontSize: 9 }} axisLine={{ stroke: '#374151' }} />
-                    <YAxis tick={{ fill: '#6b7280', fontSize: 9 }} axisLine={{ stroke: '#374151' }} width={30} />
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                    <XAxis dataKey="time" tick={{ fill: 'currentColor', fontSize: 9 }} axisLine={{ stroke: 'hsl(var(--border))' }} />
+                    <YAxis tick={{ fill: 'currentColor', fontSize: 9 }} axisLine={{ stroke: 'hsl(var(--border))' }} width={30} />
                     <RechartsTooltip
                       contentStyle={{
-                        backgroundColor: '#161b22',
-                        border: '1px solid #374151',
+                        backgroundColor: 'hsl(var(--card))',
+                        border: '1px solid hsl(var(--border))',
                         borderRadius: '4px',
                         fontSize: '11px',
+                        color: 'hsl(var(--foreground))',
                       }}
-                      labelStyle={{ color: '#9ca3af' }}
+                      labelStyle={{ color: 'hsl(var(--muted-foreground))' }}
                     />
                     <Line type="monotone" dataKey="temperature" stroke="#fb923c" strokeWidth={1.5} dot={false} name="温度" />
                     <Line type="monotone" dataKey="humidity" stroke="#60a5fa" strokeWidth={1.5} dot={false} name="湿度" />
@@ -460,18 +461,18 @@ export default function SerialMonitor() {
           </Card>
 
           {/* 连接状态 */}
-          <div className="mt-3 rounded-md border border-gray-800 bg-[#0d1117] p-2">
+          <div className="mt-3 rounded-md border border-border bg-background p-2">
             <div className="flex items-center justify-between text-[11px]">
-              <span className="text-gray-500">{lang === 'zh' ? '设备' : 'Device'}</span>
-              <span className="text-gray-300">{connected ? 'COM3 (模拟)' : '—'}</span>
+              <span className="text-muted-foreground">{lang === 'zh' ? '设备' : 'Device'}</span>
+              <span>{connected ? 'COM3 (模拟)' : '—'}</span>
             </div>
             <div className="mt-1 flex items-center justify-between text-[11px]">
-              <span className="text-gray-500">{lang === 'zh' ? '波特率' : 'Baud Rate'}</span>
-              <span className="text-gray-300 font-mono">{baudRate}</span>
+              <span className="text-muted-foreground">{lang === 'zh' ? '波特率' : 'Baud Rate'}</span>
+              <span className="font-mono">{baudRate}</span>
             </div>
             <div className="mt-1 flex items-center justify-between text-[11px]">
-              <span className="text-gray-500">{lang === 'zh' ? '数据点' : 'Data Points'}</span>
-              <span className="text-gray-300 font-mono">{dataPoints.length}</span>
+              <span className="text-muted-foreground">{lang === 'zh' ? '数据点' : 'Data Points'}</span>
+              <span className="font-mono">{dataPoints.length}</span>
             </div>
           </div>
         </div>
@@ -479,15 +480,15 @@ export default function SerialMonitor() {
 
       {/* 危险指令确认 */}
       <AlertDialog open={dangerOpen} onOpenChange={setDangerOpen}>
-        <AlertDialogContent className="border-destructive/50 bg-[#161b22] text-gray-200">
+        <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-destructive">
               <AlertTriangle className="size-5" />
               {t('serial.dangerConfirm')}
             </AlertDialogTitle>
-            <AlertDialogDescription className="text-gray-400">
+            <AlertDialogDescription>
               {t('serial.dangerWarn')}
-              <div className="mt-2 rounded bg-[#0d1117] p-2 font-mono text-sm text-red-400">
+              <div className="mt-2 rounded bg-muted/30 p-2 font-mono text-sm text-destructive">
                 {pendingCmd}
               </div>
             </AlertDialogDescription>
