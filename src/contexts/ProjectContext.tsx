@@ -525,6 +525,26 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       };
       dispatch({ type: 'ADD_COMPONENT', component: instance });
       dispatch({ type: 'SMART_RECOMMEND_PINS', componentId: instance.id });
+
+      // 自动创建对应的逻辑节点
+      const nodeTypeMap: Record<string, string> = {
+        sensor: 'sensor-read',
+        actuator: 'led-control',
+        display: 'display-out',
+        communication: 'sensor-read',
+      };
+      const nodeType = nodeTypeMap[def.category] ?? 'sensor-read';
+      const nodeLabel = def.name.zh;
+      const autoNode: ILogicNode = {
+        id: generateId('node'),
+        type: nodeType,
+        category: def.category === 'actuator' ? 'output' : def.category === 'display' ? 'output' : 'input',
+        label: { zh: nodeLabel, en: def.name.en },
+        position: { x: 100 + Math.random() * 400, y: 100 + Math.random() * 300 },
+        properties: { componentId: instance.id },
+        componentInstanceId: instance.id,
+      };
+      dispatch({ type: 'ADD_NODE', node: autoNode });
     },
     [currentBoard, state.currentProject.components, t]
   );
@@ -707,8 +727,11 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const loadSharedProject = useCallback(
     async (encodedData: string) => {
       try {
-        // 1. Base64 解码为二进制字符串
-        const binaryStr = atob(encodedData);
+        // 1. 恢复 Base64 (short format: - → +, _ → /, add padding)
+        const base64 = encodedData.replace(/-/g, '+').replace(/_/g, '/');
+        const padLen = (4 - (base64.length % 4)) % 4;
+        const padded = base64 + '='.repeat(padLen);
+        const binaryStr = atob(padded);
         const len = binaryStr.length;
         const bytes = new Uint8Array(len);
         for (let i = 0; i < len; i++) {
@@ -720,17 +743,62 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         const jsonStr = new TextDecoder().decode(decompressed);
         const raw = JSON.parse(jsonStr);
 
-        // 3. Schema 校验
-        const validated = validateProject(raw);
+        let migrated: IProject;
 
-        // 4. 迁移旧格式
-        const migrated = migrateProject(validated as unknown as Record<string, unknown>);
-
-        // 5. 生成新 ID
-        migrated.id = generateId('proj');
-        migrated.createdAt = Date.now();
-        migrated.updatedAt = Date.now();
-        migrated.metadata = { ...migrated.metadata, description: '从分享链接导入' };
+        // 3. 处理新格式 (minimal: {v, n, b, c, g}) vs 旧格式 (完整 IProject)
+        if (raw.v && raw.b && raw.c) {
+          // 新格式 - 从最小字段重建项目
+          const boardDef = MOCK_BOARDS.find((board) => board.id === raw.b);
+          const components: IComponentInstance[] = (raw.c as Array<{ i: string; m: Record<string, string> }>).map((c) => {
+            const def = MOCK_COMPONENTS.find((comp) => comp.id === c.i);
+            return {
+              id: generateId('comp'),
+              componentId: c.i,
+              name: def?.name.zh ?? c.i,
+              pinMapping: c.m,
+            };
+          });
+          const logicGraph: ILogicGraph = {
+            nodes: ((raw.g?.n ?? []) as Array<{ t: string; a: string; p: { x: number; y: number }; r: Record<string, any> }>).map((n) => ({
+              id: generateId('node'),
+              type: n.t,
+              category: n.a as ILogicNode['category'],
+              label: { zh: n.t, en: n.t },
+              position: n.p,
+              properties: n.r ?? {},
+            })),
+            edges: ((raw.g?.e ?? []) as Array<{ s: string; p: string; t: string; q: string }>).map((e) => ({
+              id: generateId('edge'),
+              source: e.s,
+              sourcePort: e.p,
+              target: e.t,
+              targetPort: e.q,
+            })),
+            viewport: { x: 0, y: 0, zoom: 1 },
+          };
+          migrated = {
+            id: generateId('proj'),
+            name: raw.n || '导入项目',
+            platformVersion: PLATFORM_VERSION,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            board: {
+              boardId: raw.b,
+              name: boardDef?.name ?? { zh: '未知开发板', en: 'Unknown Board' },
+            },
+            components,
+            logicGraph,
+            metadata: { description: '从分享链接导入' },
+          };
+        } else {
+          // 旧格式 - Schema 校验 + 迁移
+          const validated = validateProject(raw);
+          migrated = migrateProject(validated as unknown as Record<string, unknown>);
+          migrated.id = generateId('proj');
+          migrated.createdAt = Date.now();
+          migrated.updatedAt = Date.now();
+          migrated.metadata = { ...migrated.metadata, description: '从分享链接导入' };
+        }
 
         const updated = [...state.projects, migrated];
         dispatch({ type: 'SET_PROJECTS', projects: updated });
@@ -759,7 +827,10 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
   const loadSharedProjectFromHash = useCallback(
     async (encodedData: string) => {
       try {
-        const binaryStr = atob(encodedData);
+        const base64 = encodedData.replace(/-/g, '+').replace(/_/g, '/');
+        const padLen = (4 - (base64.length % 4)) % 4;
+        const padded = base64 + '='.repeat(padLen);
+        const binaryStr = atob(padded);
         const len = binaryStr.length;
         const bytes = new Uint8Array(len);
         for (let i = 0; i < len; i++) {
@@ -769,13 +840,37 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         const jsonStr = new TextDecoder().decode(decompressed);
         const raw = JSON.parse(jsonStr);
 
-        const validated = validateProject(raw);
-        const migrated = migrateProject(validated as unknown as Record<string, unknown>);
-
-        migrated.id = generateId('proj');
-        migrated.createdAt = Date.now();
-        migrated.updatedAt = Date.now();
-        migrated.metadata = { ...migrated.metadata, description: '从分享链接导入' };
+        let migrated: IProject;
+        if (raw.v && raw.b && raw.c) {
+          const boardDef = MOCK_BOARDS.find((board) => board.id === raw.b);
+          const components: IComponentInstance[] = (raw.c as Array<{ i: string; m: Record<string, string> }>).map((c) => {
+            const def = MOCK_COMPONENTS.find((comp) => comp.id === c.i);
+            return { id: generateId('comp'), componentId: c.i, name: def?.name.zh ?? c.i, pinMapping: c.m };
+          });
+          const logicGraph: ILogicGraph = {
+            nodes: ((raw.g?.n ?? []) as Array<any>).map((n: any) => ({
+              id: generateId('node'), type: n.t, category: n.a as ILogicNode['category'],
+              label: { zh: n.t, en: n.t }, position: n.p, properties: n.r ?? {},
+            })),
+            edges: ((raw.g?.e ?? []) as Array<any>).map((e: any) => ({
+              id: generateId('edge'), source: e.s, sourcePort: e.p, target: e.t, targetPort: e.q,
+            })),
+            viewport: { x: 0, y: 0, zoom: 1 },
+          };
+          migrated = {
+            id: generateId('proj'), name: raw.n || '导入项目', platformVersion: PLATFORM_VERSION,
+            createdAt: Date.now(), updatedAt: Date.now(),
+            board: { boardId: raw.b, name: boardDef?.name ?? { zh: '未知开发板', en: 'Unknown Board' } },
+            components, logicGraph, metadata: { description: '从分享链接导入' },
+          };
+        } else {
+          const validated = validateProject(raw);
+          migrated = migrateProject(validated as unknown as Record<string, unknown>);
+          migrated.id = generateId('proj');
+          migrated.createdAt = Date.now();
+          migrated.updatedAt = Date.now();
+          migrated.metadata = { ...migrated.metadata, description: '从分享链接导入' };
+        }
 
         dispatch({ type: 'SET_PROJECTS', projects: [migrated] });
         dispatch({ type: 'SET_PROJECT', project: migrated });
@@ -791,7 +886,6 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
           });
         }
 
-        // 清除 hash，避免刷新重复导入
         history.replaceState(null, '', window.location.pathname);
 
         toast.success(t('share.externalWarning'));

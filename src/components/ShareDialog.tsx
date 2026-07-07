@@ -1,8 +1,6 @@
 import { useState, useMemo, useCallback } from 'react';
-import { X, Copy, Check, Share2, AlertTriangle, Link2, QrCode, FileDown, ShieldCheck } from 'lucide-react';
+import { Copy, Check, Share2, AlertTriangle, Link2, FileDown, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   Dialog,
   DialogContent,
@@ -14,7 +12,6 @@ import {
 import { useI18n } from '@/contexts/I18nContext';
 import { useProject } from '@/contexts/ProjectContext';
 import { copyToClipboard, downloadText } from '@/lib/utils';
-import { sanitizeSensitiveFields } from '@/lib/sanitize';
 import { QRCodeSVG } from 'qrcode.react';
 import * as pako from 'pako';
 import { toast } from 'sonner';
@@ -24,58 +21,81 @@ interface ShareDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
+function encodeMinimal(data: object): string {
+  const json = JSON.stringify(data);
+  const compressed = pako.deflate(json);
+  let binary = '';
+  const bytes = new Uint8Array(compressed);
+  for (let i = 0; i < bytes.byteLength; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
 export default function ShareDialog({ open, onOpenChange }: ShareDialogProps) {
   const { t, lang } = useI18n();
   const { state } = useProject();
   const [copied, setCopied] = useState(false);
-  const [shareMethod, setShareMethod] = useState<'link' | 'file'>('link');
 
-  // 生成分享链接（pako 压缩 + Base64）
-  const shareUrl = useMemo(() => {
+  const shareResult = useMemo(() => {
     try {
-      // 1. 脱敏敏感字段
-      const sanitized = sanitizeSensitiveFields(state.currentProject);
-
-      // 2. JSON 序列化
-      const jsonStr = JSON.stringify(sanitized);
-
-      // 3. pako deflate 压缩
-      const compressed = pako.deflate(jsonStr);
-
-      // 4. 转 Base64（用 btoa + Uint8Array -> binary string）
-      let binary = '';
-      const bytes = new Uint8Array(compressed);
-      const len = bytes.byteLength;
-      for (let i = 0; i < len; i++) {
-        binary += String.fromCharCode(bytes[i]);
-      }
-      const encoded = btoa(binary);
-
-      // 5. 拼 URL
-      const baseUrl = window.location.origin + window.location.pathname;
-      return `${baseUrl}#share=${encoded}`;
+      const minimal = {
+        v: '1',
+        n: state.currentProject.name,
+        b: state.currentProject.board.boardId,
+        c: state.currentProject.components.map((c) => ({
+          i: c.componentId,
+          m: c.pinMapping,
+        })),
+        g: {
+          n: state.currentProject.logicGraph.nodes.map((n) => ({
+            t: n.type,
+            a: n.category,
+            p: n.position,
+            r: n.properties,
+          })),
+          e: state.currentProject.logicGraph.edges.map((e) => ({
+            s: e.source,
+            p: e.sourcePort,
+            t: e.target,
+            q: e.targetPort,
+          })),
+        },
+      };
+      const encoded = encodeMinimal(minimal);
+      const baseUrl = window.location.origin + window.location.pathname + '#';
+      const url = `${baseUrl}share=${encoded}`;
+      const qrOk = encoded.length < 600;
+      return { url, qrOk, error: null };
     } catch {
-      return window.location.href;
+      return { url: window.location.href, qrOk: false, error: true };
     }
   }, [state.currentProject]);
 
-  const isTooLarge = shareUrl.length > 2000;
-
   const handleCopy = useCallback(async () => {
-    const ok = await copyToClipboard(shareUrl);
+    const ok = await copyToClipboard(shareResult.url);
     if (ok) {
       setCopied(true);
-      toast.success(t('share.copied'));
+      toast.success('链接已复制');
       setTimeout(() => setCopied(false), 2000);
     }
-  }, [shareUrl, t]);
+  }, [shareResult.url]);
 
   const handleDownloadFile = useCallback(() => {
-    const sanitized = sanitizeSensitiveFields(state.currentProject);
-    const data = JSON.stringify(sanitized, null, 2);
-    downloadText(data, `${state.currentProject.name}.thingflow`, 'application/json');
-    toast.success(t('project.exportSuccess'));
-  }, [state.currentProject, t]);
+    const minimal = {
+      version: '1',
+      name: state.currentProject.name,
+      boardId: state.currentProject.board.boardId,
+      components: state.currentProject.components.map((c) => ({
+        componentId: c.componentId,
+        name: c.name,
+        pinMapping: c.pinMapping,
+      })),
+      logicGraph: state.currentProject.logicGraph,
+    };
+    downloadText(JSON.stringify(minimal, null, 2), `${state.currentProject.name}.thingflow`, 'application/json');
+    toast.success('文件已导出');
+  }, [state.currentProject]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -86,116 +106,84 @@ export default function ShareDialog({ open, onOpenChange }: ShareDialogProps) {
             {t('share.title')}
           </DialogTitle>
           <DialogDescription>
-            {lang === 'zh' ? '分享你的项目给其他人' : 'Share your project with others'}
+            {lang === 'zh' ? '通过链接或文件分享你的项目' : 'Share via link or file'}
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs value={shareMethod} onValueChange={(v) => setShareMethod(v as 'link' | 'file')}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="link">
-              <Link2 className="mr-1.5 size-3.5" />
-              {lang === 'zh' ? '链接分享' : 'Link'}
-            </TabsTrigger>
-            <TabsTrigger value="file">
-              <Share2 className="mr-1.5 size-3.5" />
-              {lang === 'zh' ? '文件分享' : 'File'}
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="link" className="space-y-4 pt-4">
-            {isTooLarge && (
-              <div className="rounded-lg border border-warning/30 bg-warning/10 p-3">
-                <div className="flex items-start gap-2">
-                  <AlertTriangle className="mt-0.5 size-4 text-warning" />
-                  <div>
-                    <div className="text-sm font-medium text-warning-foreground">
-                      {t('share.sizeWarning')}
-                    </div>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
-                      {lang === 'zh' ? '建议使用文件分享方式' : 'Recommended to use file sharing'}
-                    </p>
-                  </div>
-                </div>
+        <div className="space-y-4">
+          {/* 二维码 - 仅数据量小时显示 */}
+          {shareResult.qrOk && !shareResult.error && (
+            <div className="rounded-lg border border-border bg-muted/30 p-3">
+              <div className="mb-2 text-center text-xs font-medium text-muted-foreground">
+                {lang === 'zh' ? '扫码打开项目' : 'Scan to open'}
               </div>
-            )}
-
-            <div className="space-y-3">
-              <div className="rounded-lg border border-border bg-muted/30 p-3">
-                <div className="mb-2 flex items-center gap-2">
-                  <QrCode className="size-4 text-muted-foreground" />
-                  <span className="text-xs font-medium text-muted-foreground">
-                    {t('share.qrCode')}
-                  </span>
-                </div>
-                <div className="mx-auto flex size-36 items-center justify-center rounded-lg border border-border bg-background p-2">
-                  {shareUrl && (
-                    <QRCodeSVG
-                      value={shareUrl}
-                      size={128}
-                      level="M"
-                      includeMargin={false}
-                      bgColor="transparent"
-                      fgColor="currentColor"
-                      className="text-foreground"
-                    />
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <label className="mb-1 block text-xs font-medium text-muted-foreground">
-                  {t('share.copyLink')}
-                </label>
-                <div className="flex gap-2">
-                  <div
-                    className="flex-1 truncate rounded-md border border-border bg-muted/30 px-3 py-2 font-mono text-xs"
-                    title={shareUrl}
-                  >
-                    {shareUrl}
-                  </div>
-                  <Button size="sm" onClick={handleCopy}>
-                    {copied ? (
-                      <Check className="mr-1 size-3.5" />
-                    ) : (
-                      <Copy className="mr-1 size-3.5" />
-                    )}
-                    {copied ? t('common.success') : t('common.copy')}
-                  </Button>
-                </div>
+              <div className="mx-auto flex size-36 items-center justify-center rounded-lg border border-border bg-background p-2">
+                <QRCodeSVG
+                  value={shareResult.url}
+                  size={120}
+                  level="L"
+                  bgColor="transparent"
+                  fgColor="currentColor"
+                  className="text-foreground"
+                />
               </div>
             </div>
+          )}
 
-            <div className="rounded-md border border-border/50 bg-muted/20 p-2.5 text-[11px] text-muted-foreground">
-              <div className="flex items-center gap-1.5">
-                <ShieldCheck className="size-3.5 text-success" />
-                {t('share.sensitiveReplaced')}
+          {/* 链接复制 */}
+          <div>
+            <label className="mb-1 block text-xs font-medium text-muted-foreground">
+              {lang === 'zh' ? '分享链接' : 'Share Link'}
+            </label>
+            <div className="flex gap-2">
+              <div
+                className="flex-1 truncate rounded-md border border-border bg-muted/30 px-3 py-2 font-mono text-xs"
+                title={shareResult.url}
+              >
+                {shareResult.error ? (lang === 'zh' ? '生成失败' : 'Failed') : shareResult.url}
               </div>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="file" className="space-y-4 pt-4">
-            <div className="rounded-lg border border-border bg-muted/30 p-4 text-center">
-              <FileDown className="mx-auto mb-2 size-8 text-muted-foreground" />
-              <div className="text-sm font-medium">
-                {lang === 'zh' ? '导出为 .thingflow 文件' : 'Export as .thingflow file'}
-              </div>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {lang === 'zh' ? '适合大型项目，可离线保存' : 'Suitable for large projects, offline storage'}
-              </p>
-              <Button size="sm" className="mt-3" onClick={handleDownloadFile}>
-                <FileDown className="mr-1.5 size-3.5" />
-                {t('common.export')}
+              <Button size="sm" onClick={handleCopy} disabled={shareResult.error}>
+                {copied ? <Check className="mr-1 size-3.5" /> : <Copy className="mr-1 size-3.5" />}
+                {copied ? '已复制' : t('common.copy')}
               </Button>
             </div>
+          </div>
 
-            <div className="rounded-md border border-border/50 bg-muted/20 p-2.5 text-[11px] text-muted-foreground">
-              <div className="flex items-center gap-1.5">
-                <ShieldCheck className="size-3.5 text-success" />
-                {t('share.sensitiveReplaced')}
+          {!shareResult.qrOk && !shareResult.error && (
+            <div className="rounded-lg border border-warning/30 bg-warning/10 p-3">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="mt-0.5 size-4 text-warning shrink-0" />
+                <div className="text-xs text-muted-foreground">
+                  {lang === 'zh'
+                    ? '项目数据较大，二维码可能无法扫描。请复制链接或使用下方文件分享。'
+                    : 'Project is large, QR may not scan. Copy link or use file share below.'}
+                </div>
               </div>
             </div>
-          </TabsContent>
-        </Tabs>
+          )}
+
+          <div className="border-t border-border pt-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <FileDown className="size-4 text-muted-foreground" />
+                <span className="text-xs font-medium">
+                  {lang === 'zh' ? '导出文件' : 'Export File'}
+                </span>
+              </div>
+              <Button variant="secondary" size="sm" onClick={handleDownloadFile}>
+                <FileDown className="mr-1 size-3.5" />
+                .thingflow
+              </Button>
+            </div>
+          </div>
+
+          <div className="rounded-md border border-border/50 bg-muted/20 p-2.5 text-[11px] text-muted-foreground">
+            <div className="flex items-center gap-1.5">
+              <ShieldCheck className="size-3.5 text-success shrink-0" />
+              {lang === 'zh' ? '密码等敏感信息不会包含在分享数据中' : 'Sensitive info excluded from shared data'}
+            </div>
+          </div>
+        </div>
 
         <DialogFooter>
           <Button variant="ghost" onClick={() => onOpenChange(false)}>
