@@ -190,7 +190,7 @@ export default function WiringDiagram() {
     direction: 'left-to-right' | 'right-to-left' | 'cross'
   ) => {
     const { board: b } = layout;
-    const ext = 20;
+    const ext = 25;
     if (direction === 'cross') {
       const goTop = y1 < b.y + b.h / 2;
       const routeY = goTop ? b.y - 25 : b.y + b.h + 25;
