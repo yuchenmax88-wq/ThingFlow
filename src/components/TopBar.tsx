@@ -22,6 +22,7 @@ import {
   Cpu,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -168,6 +169,7 @@ export default function TopBar({
           <Zap className="size-4" />
         </div>
         <span className="text-sm font-semibold text-foreground">ThingFlow</span>
+        <Badge variant="outline" className="h-4 px-1 text-[9px] font-normal text-muted-foreground">v1.1.0</Badge>
 
         <div className="mx-2 h-5 w-px bg-border" />
 

@@ -189,15 +189,18 @@ export default function WiringDiagram() {
     y2: number,
     direction: 'left-to-right' | 'right-to-left' | 'cross'
   ) => {
-    const midX = (x1 + x2) / 2;
     const { board: b } = layout;
+    const ext = 14;
     if (direction === 'cross') {
       const goTop = y1 < b.y + b.h / 2;
       const routeY = goTop ? b.y - 25 : b.y + b.h + 25;
-      const gap = 30;
-      return `M ${x1} ${y1} L ${x1} ${routeY} L ${x2} ${routeY} L ${x2} ${y2}`;
+      const x1Ext = x1 < b.x ? x1 + ext : x1 - ext;
+      const x2Ext = x2 < b.x ? x2 - ext : x2 + ext;
+      return `M ${x1} ${y1} L ${x1Ext} ${y1} L ${x1Ext} ${routeY} L ${x2Ext} ${routeY} L ${x2Ext} ${y2} L ${x2} ${y2}`;
     }
-    return `M ${x1} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2} ${y2}`;
+    const midX = (x1 + x2) / 2;
+    // Both sides go left-to-right, extend outward for clarity
+    return `M ${x1} ${y1} L ${x1 + ext} ${y1} C ${midX} ${y1}, ${midX} ${y2}, ${x2 - ext} ${y2} L ${x2} ${y2}`;
   };
 
   // 导出 PNG

@@ -436,7 +436,7 @@ export default function SerialMonitor() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-2">
-              <div className="h-48">
+              <div className="h-48 min-h-[192px]">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={dataPoints}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />

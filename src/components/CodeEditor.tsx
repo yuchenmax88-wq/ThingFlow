@@ -366,7 +366,8 @@ void loop() {
             insertSpaces: true,
             wordWrap: 'on',
             padding: { top: 8, bottom: 8 },
-          }}
+            fixedOverflowWidgets: true,
+          } as any}
         />
       </div>
 

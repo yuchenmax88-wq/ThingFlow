@@ -38,6 +38,7 @@ import {
 import { useI18n } from '@/contexts/I18nContext';
 import { useProject } from '@/contexts/ProjectContext';
 import { MOCK_COMPONENTS, type IComponentPinDef } from '@/data/components';
+import { NODE_TYPE_DEFS, getNodeTypeDef } from '@/lib/node-types';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -65,6 +66,11 @@ export default function RightPanel() {
   const selectedComponentDef = selectedComponent
     ? getComponentDef(selectedComponent.componentId)
     : null;
+
+  const selectedNode = state.currentProject.logicGraph.nodes.find(
+    (n) => n.id === state.selectedNodeId
+  );
+  const selectedNodeDef = selectedNode ? getNodeTypeDef(selectedNode.type) : null;
 
   const conflicts = getPinConflicts();
 
@@ -389,6 +395,113 @@ export default function RightPanel() {
                   <span className="text-[10px] text-muted-foreground">无需额外库</span>
                 )}
               </div>
+            </div>
+          </div>
+        ) : selectedNode && selectedNodeDef ? (
+          /* 选中节点时显示节点属性 */
+          <div className="space-y-4 p-3">
+            <div className="rounded-lg border border-border bg-card p-3">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <div className={cn('size-3 rounded', selectedNodeDef.color)} />
+                  <span className="text-sm font-medium">
+                    {lang === 'zh' ? selectedNodeDef.label.zh : selectedNodeDef.label.en}
+                  </span>
+                </div>
+                <Badge variant="outline" className="text-[10px]">
+                  {lang === 'zh'
+                    ? ({ input: '输入', process: '处理', output: '输出', flow: '流程', wireless: '无线' } as const)[selectedNode.category]
+                    : ({ input: 'Input', process: 'Process', output: 'Output', flow: 'Flow', wireless: 'Wireless' } as const)[selectedNode.category]}
+                </Badge>
+              </div>
+              <div className="text-[10px] text-muted-foreground font-mono">
+                ID: {selectedNode.id.slice(0, 12)}
+              </div>
+            </div>
+
+            {/* 节点参数配置 */}
+            <div className="rounded-lg border border-border bg-card">
+              <div className="border-b border-border px-3 py-2">
+                <div className="flex items-center gap-1.5">
+                  <Settings className="size-3.5 text-primary" />
+                  <span className="text-xs font-medium">参数配置</span>
+                </div>
+              </div>
+              <div className="space-y-3 p-3">
+                {Object.entries(selectedNodeDef.defaultProperties).map(([key, defaultValue]) => {
+                  const currentValue = selectedNode.properties[key] ?? defaultValue;
+                  const valueType = typeof defaultValue;
+                  return (
+                    <div key={key} className="space-y-1">
+                      <label className="text-[10px] font-medium text-muted-foreground">{key}</label>
+                      {valueType === 'boolean' ? (
+                        <Switch
+                          className="scale-90"
+                          checked={!!currentValue}
+                          onCheckedChange={(v) =>
+                            dispatch({ type: 'UPDATE_NODE', id: selectedNode.id, updates: { properties: { ...selectedNode.properties, [key]: v } } })
+                          }
+                        />
+                      ) : valueType === 'number' ? (
+                        <Input
+                          type="number"
+                          size={1}
+                          className="h-7 text-xs"
+                          value={currentValue as number}
+                          onChange={(e) =>
+                            dispatch({ type: 'UPDATE_NODE', id: selectedNode.id, updates: { properties: { ...selectedNode.properties, [key]: Number(e.target.value) } } })
+                          }
+                        />
+                      ) : (
+                        <Input
+                          size={1}
+                          className="h-7 text-xs"
+                          value={currentValue as string}
+                          onChange={(e) =>
+                            dispatch({ type: 'UPDATE_NODE', id: selectedNode.id, updates: { properties: { ...selectedNode.properties, [key]: e.target.value } } })
+                          }
+                        />
+                      )}
+                    </div>
+                  );
+                })}
+                {Object.keys(selectedNodeDef.defaultProperties).length === 0 && (
+                  <div className="text-[10px] text-muted-foreground">此节点无可配置参数</div>
+                )}
+              </div>
+            </div>
+
+            {/* 端口信息 */}
+            <div className="rounded-lg border border-border bg-card p-3">
+              <div className="mb-2 text-xs font-medium">端口信息</div>
+              {selectedNodeDef.inputs.length > 0 && (
+                <div className="mb-2">
+                  <div className="mb-1 text-[10px] text-muted-foreground">输入端口</div>
+                  <div className="space-y-0.5">
+                    {selectedNodeDef.inputs.map((port) => (
+                      <div key={port.id} className="flex items-center gap-1.5 text-[10px]">
+                        <span className="size-2 rounded-full bg-muted-foreground/50" />
+                        <span className="font-mono">{port.id}</span>
+                        <span className="text-muted-foreground">({port.type})</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {selectedNodeDef.outputs.length > 0 && (
+                <div>
+                  <div className="mb-1 text-[10px] text-muted-foreground">输出端口</div>
+                  <div className="space-y-0.5">
+                    {selectedNodeDef.outputs.map((port) => (
+                      <div key={port.id} className="flex items-center gap-1.5 text-[10px]">
+                        <span className="size-2 rounded-full bg-primary" />
+                        <span className="font-mono">{port.id}</span>
+                        <span className="text-muted-foreground">({port.type})</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         ) : (
