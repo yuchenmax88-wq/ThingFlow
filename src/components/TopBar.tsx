@@ -169,7 +169,7 @@ export default function TopBar({
           <Zap className="size-4" />
         </div>
         <span className="text-sm font-semibold text-foreground">ThingFlow</span>
-        <Badge variant="outline" className="h-4 px-1 text-[9px] font-normal text-muted-foreground">v1.1.0</Badge>
+        <Badge variant="outline" className="h-4 px-1 text-[9px] font-normal text-muted-foreground">v1.2.0</Badge>
 
         <div className="mx-2 h-5 w-px bg-border" />
 
