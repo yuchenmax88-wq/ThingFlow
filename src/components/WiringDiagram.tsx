@@ -481,6 +481,83 @@ export default function WiringDiagram() {
               </text>
             </g>
 
+            {/* 面包板 */}
+            {(() => {
+              const bbComp = state.currentProject.components.find((c) => c.componentId === 'breadboard');
+              if (!bbComp) return null;
+              const bbX = 100;
+              const bbY = board.y + board.h + 50;
+              const bbW = 700;
+              const bbH = 120;
+              const railW = 20;
+              const holeR = 4;
+              const holeGap = 14;
+
+              return (
+                <g className="opacity-90">
+                  {/* 面板 */}
+                  <rect x={bbX} y={bbY} width={bbW} height={bbH} rx="12" fill="#fafafa" stroke="#d1d5db" strokeWidth="2" filter="url(#shadow)" />
+                  <text x={bbX + bbW / 2} y={bbY - 8} textAnchor="middle" fill="#6b7280" fontSize="11" fontWeight="600" fontFamily="monospace">
+                    {lang === 'zh' ? '面包板' : 'Breadboard'}
+                  </text>
+
+                  {/* 顶部电源轨 */}
+                  <rect x={bbX + 10} y={bbY + 8} width={bbW - 20} height="18" rx="3" fill="#fee2e2" stroke="#fca5a5" strokeWidth="1" />
+                  <text x={bbX + 30} y={bbY + 21} fill="#dc2626" fontSize="9" fontWeight="bold" fontFamily="monospace">+</text>
+                  {Array.from({ length: Math.floor((bbW - 60) / holeGap) }).map((_, i) => (
+                    <circle key={`bb-top-${i}`} cx={bbX + 45 + i * holeGap} cy={bbY + 17} r={holeR} fill="#dc2626" />
+                  ))}
+                  {/* 底部电源轨 */}
+                  <rect x={bbX + 10} y={bbY + 94} width={bbW - 20} height="18" rx="3" fill="#dbeafe" stroke="#93c5fd" strokeWidth="1" />
+                  <text x={bbX + 30} y={bbY + 107} fill="#2563eb" fontSize="9" fontWeight="bold" fontFamily="monospace">−</text>
+                  {Array.from({ length: Math.floor((bbW - 60) / holeGap) }).map((_, i) => (
+                    <circle key={`bb-bottom-${i}`} cx={bbX + 45 + i * holeGap} cy={bbY + 103} r={holeR} fill="#2563eb" />
+                  ))}
+
+                  {/* 中间连接行 (5 rows) */}
+                  <rect x={bbX + bbW / 2 - 1} y={bbY + 32} width="2" height="56" fill="#d1d5db" />
+                  {Array.from({ length: 5 }).map((_, row) => {
+                    const rowY = bbY + 36 + row * 12;
+                    const cols = Math.floor((bbW - 60) / holeGap) / 2;
+                    return (
+                      <g key={`bb-row-${row}`}>
+                        {/* 左半 */}
+                        {Array.from({ length: cols }).map((_, col) => (
+                          <g key={`bb-left-${row}-${col}`}>
+                            <circle cx={bbX + 45 + col * holeGap} cy={rowY} r={holeR} fill="#d1d5db" stroke="#9ca3af" strokeWidth="0.5" />
+                            {col < cols - 1 && (
+                              <line x1={bbX + 45 + col * holeGap + holeR} y1={rowY} x2={bbX + 45 + (col + 1) * holeGap - holeR} y2={rowY} stroke="#d1d5db" strokeWidth="1.5" />
+                            )}
+                          </g>
+                        ))}
+                        {/* 右半 */}
+                        {Array.from({ length: cols }).map((_, col) => (
+                          <g key={`bb-right-${row}-${col}`}>
+                            <circle cx={bbX + bbW / 2 + 10 + col * holeGap} cy={rowY} r={holeR} fill="#d1d5db" stroke="#9ca3af" strokeWidth="0.5" />
+                            {col < cols - 1 && (
+                              <line x1={bbX + bbW / 2 + 10 + col * holeGap + holeR} y1={rowY} x2={bbX + bbW / 2 + 10 + (col + 1) * holeGap - holeR} y2={rowY} stroke="#d1d5db" strokeWidth="1.5" />
+                            )}
+                          </g>
+                        ))}
+                      </g>
+                    );
+                  })}
+
+                  {/* 行编号 */}
+                  {Array.from({ length: 5 }).map((_, row) => (
+                    <text key={`bb-label-${row}`} x={bbX + 14} y={bbY + 40 + row * 12} textAnchor="middle" fill="#9ca3af" fontSize="7" fontFamily="monospace">
+                      {row + 1}
+                    </text>
+                  ))}
+                  {Array.from({ length: 5 }).map((_, row) => (
+                    <text key={`bb-label-r-${row}`} x={bbX + 14} y={bbY + 40 + row * 12} textAnchor="middle" fill="#9ca3af" fontSize="7" fontFamily="monospace">
+                      {/* labels already shown above */}
+                    </text>
+                  ))}
+                </g>
+              );
+            })()}
+
             {/* 配件 + 连线 */}
             {layout.components.map(({ comp, x, y, side }) => {
               const def = MOCK_COMPONENTS.find((c) => c.id === comp.componentId);
@@ -603,13 +680,23 @@ export default function WiringDiagram() {
                       textAnchor="middle"
                       fontSize="14"
                     >
-                      {def.icon === 'thermometer' && '🌡️'}
-                      {def.icon === 'lightbulb' && '💡'}
-                      {def.icon === 'monitor' && '📺'}
-                      {def.icon === 'zap' && '⚡'}
-                      {def.icon === 'sun' && '☀️'}
-                      {def.icon === 'rotate-cw' && '🔄'}
-                      {!['thermometer', 'lightbulb', 'monitor', 'zap', 'sun', 'rotate-cw'].includes(def.icon) && '🔧'}
+                      {(() => {
+                        if (def.icon === 'thermometer') return '🌡️';
+                        if (def.icon === 'lightbulb') return '💡';
+                        if (def.icon === 'monitor') return '📺';
+                        if (def.icon === 'zap') return '⚡';
+                        if (def.icon === 'sun') return '☀️';
+                        if (def.icon === 'rotate-cw') return '🔄';
+                        if (def.id.startsWith('resistor-')) return '⚡';
+                        if (def.id.startsWith('capacitor-')) return '🔋';
+                        if (def.id.startsWith('transistor-')) return '💠';
+                        if (def.id.startsWith('mosfet-')) return '💠';
+                        if (def.id.startsWith('diode-')) return '🔺';
+                        if (def.id === 'level-shifter-4ch') return '↕️';
+                        if (def.id === 'breadboard') return '📋';
+                        if (def.id === 'jumper-wires') return '🔗';
+                        return '🔧';
+                      })()}
                     </text>
                     {/* 配件名称 */}
                      <text

@@ -58,6 +58,8 @@ const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   sun: Sun,
   'rotate-cw': RotateCw,
   cpu: Cpu,
+  eye: Eye,
+  radio: Radio,
 };
 
 function checkCompatibility(comp: IComponentDef, boardId: string): { compatible: boolean; reason?: string } {
